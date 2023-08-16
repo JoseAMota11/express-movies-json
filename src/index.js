@@ -3,7 +3,10 @@ import dotenv from 'dotenv';
 import crypto from 'node:crypto';
 import movies from './movies.json' assert { type: 'json' };
 import { idNotFound } from './middleware/index.js';
-import { validateMovies } from './schemas/movies.schema.js';
+import {
+  validateMovies,
+  validatePartialMovies,
+} from './schemas/movies.schema.js';
 
 dotenv.config();
 const app = express();
@@ -16,6 +19,7 @@ app.get('/movies/:id', idNotFound);
 
 app.get('/movies', (req, res) => {
   const { genre } = req.query;
+  res.setHeader('Access-Control-Allow-Origin', 'http://localhost:8080');
 
   if (genre) {
     const filteredMovies = movies.filter(({ genre: movieGenre }) =>
@@ -52,8 +56,26 @@ app.post('/movies', (req, res) => {
   res.status(201).json(newMovie);
 });
 
-app.put('/movies', (req, res) => {
-  res.json({ message: 'Updating a movie' });
+app.patch('/movies/:id', (req, res) => {
+  const { id } = req.params;
+  const resultValidation = validatePartialMovies(req.body);
+  const movieIndex = movies.findIndex(({ id: movieId }) => movieId === id);
+
+  if (resultValidation.error) {
+    return res.status(400).json({ error: JSON.parse(result.error.message) });
+  }
+
+  if (movieIndex === -1) {
+    return res.status(404).json({ message: 'Movie not found' });
+  }
+
+  const newMovie = {
+    ...movies[movieIndex],
+    ...resultValidation.data,
+  };
+
+  movies[movieIndex] = newMovie;
+  res.status(201).json(newMovie);
 });
 
 app.listen(PORT, () => {
